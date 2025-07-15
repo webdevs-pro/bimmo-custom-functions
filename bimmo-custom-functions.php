@@ -14,46 +14,36 @@
 
 
 
-// add_filter( 'the_post', 'swap_post_with_translated_version', 999999 );
-// function swap_post_with_translated_version( $post ) {
-
-// 	error_log( "original post ID\n" . print_r( $post->ID, true ) );
-
-// 	// Check if this is the correct post type.
-// 	if ( ! defined( 'FRYMO_POST_TYPE' ) || FRYMO_POST_TYPE !== $post->post_type ) {
-// 		return;
-// 	}
-
-// 	$current_language = get_locale();
-// 	$default_lang = get_option( 'trp_settings' )['default-language'] ?? 'de_CH';
-
-// 	$object_exteral_id = get_post_meta( $post->ID, 'frymo_objektnr_extern', true );
-// 	$obgect_lang_terms = wp_get_object_terms( $post->ID, 'immobilie_language' );
-
-// 	if ( ! is_wp_error( $obgect_lang_terms ) && ! empty( $obgect_lang_terms ) ) {
-// 		$obgect_lang = $obgect_lang_terms[0];
-// 	} else {
-// 		$obgect_lang = 'de-CH';
-// 	}
-
-// 	$translated_object_ids = frymo_tpi_get_matching_post_ids_by_external_object_id( $post->ID, $obgect_lang );
-// 	$translation_post_id = frymo_tpi_get_translation_object_id( $translated_object_ids, $current_language );
-
-// 	if ( is_int( $translation_post_id ) ) {
-//       //   remove_filter( 'the_post', 'swap_post_with_translated_version' );
-
-//       $post = get_post( $translation_post_id );
-
-//       //   add_filter( 'the_post', 'swap_post_with_translated_version' );
-// 	}
-
-// 	error_log( "translation post ID\n" . print_r( $post->ID, true ) . "\n" );
 
 
-// 	return $post;
-// }
 
 
+
+
+add_filter( 'frymo/listing_widget/posts_result', 'frymo_tpi_filter_listing_widget_query_results',10, 2 );
+function frymo_tpi_filter_listing_widget_query_results( $wp_query, $settings ) {
+	$locale = get_locale();
+
+	if ( $locale == 'de_CH' ) {
+		return $wp_query;
+	}
+
+
+	foreach( $wp_query->posts as $index => $post ) {
+		$replacement_post = frymo_tpi_get_translated_post( $post, $locale );
+
+		if ( $post->ID === $replacement_post->ID ) {
+			continue;
+		}
+
+		error_log( "Original ID\n" . print_r( $post->ID, true ) );
+		error_log( "Replacement ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
+
+		$wp_query->posts[ $index ] = $replacement_post;
+	}
+
+	return $wp_query;
+}
 
 
 
@@ -113,6 +103,7 @@ function frymo_tpi_get_translated_post( $current_post, $locale ) {
 	$current_post_id = $current_post->ID;
 
 	$post_ids_with_same_external_id = frymo_tpi_get_matching_post_ids_by_external_object_id( $current_post_id );
+	// error_log( "post_ids_with_same_external_id\n" . print_r( $post_ids_with_same_external_id, true ) . "\n" );
 
 	$translation_post_id = frymo_tpi_get_translated_object_id( $post_ids_with_same_external_id, $locale );
 

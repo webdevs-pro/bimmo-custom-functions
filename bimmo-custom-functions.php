@@ -24,10 +24,10 @@ function ftpi_redirect_based_on_locale() {
 	}
 
 	$current_post = get_queried_object();
-	// error_log( "current_post ID\n" . print_r( $current_post->ID, true ) );
+	error_log( "current_post ID\n" . print_r( $current_post->ID, true ) );
 
 	$replacement_post = frymo_tpi_get_translated_post( $current_post, $locale );
-	// error_log( "replacement_post ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
+	error_log( "replacement_post ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
 
 	if ( $replacement_post->ID !== $current_post->ID ) {
 		$permalink = get_the_permalink( $replacement_post );
@@ -74,7 +74,13 @@ function frymo_tpi_get_translated_post( $current_post, $locale ) {
 	if ( is_int( $translation_post_id ) ) {
 		$translation_post = get_post( $translation_post_id );
 
-		return $translation_post;
+		if (
+			$translation_post instanceof WP_Post &&
+			'publish' === $translation_post->post_status &&
+			FRYMO_POST_TYPE === $translation_post->post_type
+		) {
+			return $translation_post;
+		}
 	}
 
 	return $current_post;

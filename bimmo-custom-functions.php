@@ -11,92 +11,56 @@
  */
 
 
-
-
-
-
-
-
-
-
-
-add_filter( 'frymo/listing_widget/posts_result', 'frymo_tpi_filter_listing_widget_query_results',10, 2 );
-function frymo_tpi_filter_listing_widget_query_results( $wp_query, $settings ) {
-	$locale = get_locale();
-
-	if ( $locale == 'de_CH' ) {
-		return $wp_query;
-	}
-
-
-	foreach( $wp_query->posts as $index => $post ) {
-		$replacement_post = frymo_tpi_get_translated_post( $post, $locale );
-
-		if ( $post->ID === $replacement_post->ID ) {
-			continue;
-		}
-
-		error_log( "Original ID\n" . print_r( $post->ID, true ) );
-		error_log( "Replacement ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
-
-		$wp_query->posts[ $index ] = $replacement_post;
-	}
-
-	return $wp_query;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-add_action( 'template_redirect', 'frymo_tpi_replace_post_before_rendering' );
-function frymo_tpi_replace_post_before_rendering() {
-
-	$locale = get_locale();
-	// error_log( "locale\n" . print_r( $locale, true ) . "\n" );
-
-	if ( ! is_singular( FRYMO_POST_TYPE ) || $locale == 'de_CH' ) {
+add_action( 'template_redirect', 'ftpi_redirect_based_on_locale' );
+function ftpi_redirect_based_on_locale() {
+	if ( is_admin() || wp_doing_ajax() ) {
 		return;
 	}
-	
-	global $wp_query;
-	
-	$current_post = $wp_query->get_queried_object();
-	// error_log( "current_post ID\n" . print_r( $current_post->ID, true ) . "\n" );
 
-	// $replacement_post_id = 27356;
+	$locale = get_locale();
+
+	if ( ! is_singular( FRYMO_POST_TYPE ) ) {
+		return;
+	}
+
+	$current_post = get_queried_object();
+	// error_log( "current_post ID\n" . print_r( $current_post->ID, true ) );
+
 	$replacement_post = frymo_tpi_get_translated_post( $current_post, $locale );
-
-
+	// error_log( "replacement_post ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
 
 	if ( $replacement_post->ID !== $current_post->ID ) {
-		// Replace post object
-		$wp_query->post = $replacement_post;
-		$wp_query->posts[0] = $replacement_post;
-		$wp_query->queried_object = $replacement_post;
-		$wp_query->queried_object_id = $replacement_post->ID;
+		$permalink = get_the_permalink( $replacement_post );
 
-		// Optional: setup postdata if needed
-		setup_postdata( $replacement_post );
+		wp_redirect( $permalink, 301 );
+		exit;
 	}
 }
+
+
+
+
+
+// /**
+//  * Maybe use this filter to change language URL for switcher.
+//  */
+// add_filter( 'trp_pre_get_url_for_language', 'custom_trp_language_url', 10, 3 );
+// function custom_trp_language_url( $url, $language_code, $original_url ) {
+
+// 	error_log( "url\n" . print_r( $url, true ) );
+// 	error_log( "language_code\n" . print_r( $language_code, true ) );
+// 	error_log( "original_url\n" . print_r( $original_url, true ) . "\n" );
+
+//    //  // Example: custom URL for French version
+//    //  if ( $language_code === 'de' ) {
+//    //      return home_url( '/fr/custom-path/' );
+//    //  }
+
+//     // Return unmodified URL for other languages
+//     return $url;
+// }
+
+
 
 
 function frymo_tpi_get_translated_post( $current_post, $locale ) {
@@ -115,7 +79,6 @@ function frymo_tpi_get_translated_post( $current_post, $locale ) {
 
 	return $current_post;
 }
-
 
 
 /**
@@ -165,9 +128,6 @@ function frymo_tpi_get_matching_post_ids_by_external_object_id( $post_id ) {
 	return array_map( 'absint', $results );
 }
 
-
-
-
 function frymo_tpi_get_translated_object_id( $post_ids, $translation_locale ) {
 	$translation_post_id = false;
 
@@ -196,3 +156,69 @@ function frymo_tpi_get_translated_object_id( $post_ids, $translation_locale ) {
 
 	return $translation_post_id;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

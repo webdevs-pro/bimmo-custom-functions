@@ -119,13 +119,13 @@ function frymo_tpi_get_matching_post_ids_by_external_object_id( $post_id ) {
 		INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
 		WHERE p.post_type = %s
 			AND p.ID != %d
-			AND p.post_status != 'inherit'
+			AND p.post_status = 'publish'
 			AND pm.meta_key = 'frymo_objektnr_extern'
 			AND pm.meta_value = %s
 		",
-		FRYMO_POST_TYPE,
-		$post_id,
-		$external_id
+		FRYMO_POST_TYPE, // Custom post type to match
+		$post_id,        // Exclude the current post by ID
+		$external_id     // External ID to match from post meta
 	);
 
 	$results = $wpdb->get_col( $query );
@@ -198,6 +198,33 @@ function frymo_tpi_get_translated_object_id( $post_ids, $translation_locale ) {
 
 
 
+add_action( 'pre_get_posts', 'frymo_search_by_meta_field_in_admin' );
+function frymo_search_by_meta_field_in_admin( $query ) {
+	if (
+		is_admin() &&
+		$query->is_main_query() &&
+		$query->is_search() &&
+		isset( $query->query_vars['post_type'] ) &&
+		FRYMO_POST_TYPE === $query->query_vars['post_type']
+	) {
+		global $wpdb;
+
+		$search_term = $query->get( 's' );
+
+		if ( ! empty( $search_term ) ) {
+			// Clear default search so we only search by meta
+			$query->set( 's', '' );
+
+			$query->set( 'meta_query', array(
+				array(
+					'key'     => 'frymo_objektnr_extern',
+					'value'   => $search_term,
+					'compare' => 'LIKE',
+				),
+			) );
+		}
+	}
+}
 
 
 

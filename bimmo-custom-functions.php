@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bimmo Custom Functions
  * Plugin URI: https://frymo.de
- * Version: 0.1
+ * Version: 0.2
  * Description:  Custom functions plugin for bimmo.ch website.
  * Text Domain: frymo
  * Author: Stark Systems UG

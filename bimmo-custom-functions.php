@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Bimmo Custom Functions
  * Plugin URI: https://frymo.de
- * Version: 0.1
+ * Version: 0.2
  * Description:  Custom functions plugin for bimmo.ch website.
  * Text Domain: frymo
  * Author: Stark Systems UG
@@ -11,92 +11,56 @@
  */
 
 
-
-
-
-
-
-
-
-
-
-add_filter( 'frymo/listing_widget/posts_result', 'frymo_tpi_filter_listing_widget_query_results',10, 2 );
-function frymo_tpi_filter_listing_widget_query_results( $wp_query, $settings ) {
-	$locale = get_locale();
-
-	if ( $locale == 'de_CH' ) {
-		return $wp_query;
-	}
-
-
-	foreach( $wp_query->posts as $index => $post ) {
-		$replacement_post = frymo_tpi_get_translated_post( $post, $locale );
-
-		if ( $post->ID === $replacement_post->ID ) {
-			continue;
-		}
-
-		error_log( "Original ID\n" . print_r( $post->ID, true ) );
-		error_log( "Replacement ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
-
-		$wp_query->posts[ $index ] = $replacement_post;
-	}
-
-	return $wp_query;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-add_action( 'template_redirect', 'frymo_tpi_replace_post_before_rendering' );
-function frymo_tpi_replace_post_before_rendering() {
-
-	$locale = get_locale();
-	// error_log( "locale\n" . print_r( $locale, true ) . "\n" );
-
-	if ( ! is_singular( FRYMO_POST_TYPE ) || $locale == 'de_CH' ) {
+add_action( 'template_redirect', 'ftpi_redirect_based_on_locale' );
+function ftpi_redirect_based_on_locale() {
+	if ( is_admin() || wp_doing_ajax() ) {
 		return;
 	}
-	
-	global $wp_query;
-	
-	$current_post = $wp_query->get_queried_object();
-	// error_log( "current_post ID\n" . print_r( $current_post->ID, true ) . "\n" );
 
-	// $replacement_post_id = 27356;
+	$locale = get_locale();
+
+	if ( ! is_singular( FRYMO_POST_TYPE ) ) {
+		return;
+	}
+
+	$current_post = get_queried_object();
+	error_log( "current_post ID\n" . print_r( $current_post->ID, true ) );
+
 	$replacement_post = frymo_tpi_get_translated_post( $current_post, $locale );
-
-
+	error_log( "replacement_post ID\n" . print_r( $replacement_post->ID, true ) . "\n" );
 
 	if ( $replacement_post->ID !== $current_post->ID ) {
-		// Replace post object
-		$wp_query->post = $replacement_post;
-		$wp_query->posts[0] = $replacement_post;
-		$wp_query->queried_object = $replacement_post;
-		$wp_query->queried_object_id = $replacement_post->ID;
+		$permalink = get_the_permalink( $replacement_post );
 
-		// Optional: setup postdata if needed
-		setup_postdata( $replacement_post );
+		wp_redirect( $permalink, 301 );
+		exit;
 	}
 }
+
+
+
+
+
+// /**
+//  * Maybe use this filter to change language URL for switcher.
+//  */
+// add_filter( 'trp_pre_get_url_for_language', 'custom_trp_language_url', 10, 3 );
+// function custom_trp_language_url( $url, $language_code, $original_url ) {
+
+// 	error_log( "url\n" . print_r( $url, true ) );
+// 	error_log( "language_code\n" . print_r( $language_code, true ) );
+// 	error_log( "original_url\n" . print_r( $original_url, true ) . "\n" );
+
+//    //  // Example: custom URL for French version
+//    //  if ( $language_code === 'de' ) {
+//    //      return home_url( '/fr/custom-path/' );
+//    //  }
+
+//     // Return unmodified URL for other languages
+//     return $url;
+// }
+
+
 
 
 function frymo_tpi_get_translated_post( $current_post, $locale ) {
@@ -110,12 +74,17 @@ function frymo_tpi_get_translated_post( $current_post, $locale ) {
 	if ( is_int( $translation_post_id ) ) {
 		$translation_post = get_post( $translation_post_id );
 
-		return $translation_post;
+		if (
+			$translation_post instanceof WP_Post &&
+			'publish' === $translation_post->post_status &&
+			FRYMO_POST_TYPE === $translation_post->post_type
+		) {
+			return $translation_post;
+		}
 	}
 
 	return $current_post;
 }
-
 
 
 /**
@@ -150,13 +119,13 @@ function frymo_tpi_get_matching_post_ids_by_external_object_id( $post_id ) {
 		INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
 		WHERE p.post_type = %s
 			AND p.ID != %d
-			AND p.post_status != 'inherit'
+			AND p.post_status = 'publish'
 			AND pm.meta_key = 'frymo_objektnr_extern'
 			AND pm.meta_value = %s
 		",
-		FRYMO_POST_TYPE,
-		$post_id,
-		$external_id
+		FRYMO_POST_TYPE, // Custom post type to match
+		$post_id,        // Exclude the current post by ID
+		$external_id     // External ID to match from post meta
 	);
 
 	$results = $wpdb->get_col( $query );
@@ -164,9 +133,6 @@ function frymo_tpi_get_matching_post_ids_by_external_object_id( $post_id ) {
 	// Ensure the result is an array of integers.
 	return array_map( 'absint', $results );
 }
-
-
-
 
 function frymo_tpi_get_translated_object_id( $post_ids, $translation_locale ) {
 	$translation_post_id = false;
@@ -196,3 +162,96 @@ function frymo_tpi_get_translated_object_id( $post_ids, $translation_locale ) {
 
 	return $translation_post_id;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+add_action( 'pre_get_posts', 'frymo_search_by_meta_field_in_admin' );
+function frymo_search_by_meta_field_in_admin( $query ) {
+	if (
+		is_admin() &&
+		$query->is_main_query() &&
+		$query->is_search() &&
+		isset( $query->query_vars['post_type'] ) &&
+		FRYMO_POST_TYPE === $query->query_vars['post_type']
+	) {
+		global $wpdb;
+
+		$search_term = $query->get( 's' );
+
+		if ( ! empty( $search_term ) ) {
+			// Clear default search so we only search by meta
+			$query->set( 's', '' );
+
+			$query->set( 'meta_query', array(
+				array(
+					'key'     => 'frymo_objektnr_extern',
+					'value'   => $search_term,
+					'compare' => 'LIKE',
+				),
+			) );
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
